@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#0a5d2e" />
+  <title>Familia Green Bay · Álbum Panini WC 2026</title>
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%E2%9A%BD%3C/text%3E%3C/svg%3E" />
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-emoji">⚽</span>
+      <div>
+        <h1>Familia Green Bay</h1>
+        <p class="subtitle">Álbum Panini · Copa del Mundo 2026</p>
+      </div>
+    </div>
+    <div class="user-area" id="userArea">
+      <div id="googleSignInBtn"></div>
+    </div>
+  </header>
+
+  <section class="stats" id="stats" hidden>
+    <div class="stat">
+      <span class="stat-label">Tienes</span>
+      <span class="stat-value" id="ownedCount">0</span>
+    </div>
+    <div class="stat">
+      <span class="stat-label">Faltan</span>
+      <span class="stat-value" id="missingCount">0</span>
+    </div>
+    <div class="stat">
+      <span class="stat-label">Repetidas</span>
+      <span class="stat-value" id="dupCount">0</span>
+    </div>
+    <div class="stat stat-progress">
+      <span class="stat-label">Progreso</span>
+      <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+      <span class="stat-value" id="progressPct">0%</span>
+    </div>
+  </section>
+
+  <main id="main" hidden>
+    <nav class="tabs">
+      <button class="tab active" data-tab="groups">Grupos</button>
+      <button class="tab" data-tab="special">Secciones especiales</button>
+      <button class="tab" data-tab="missing">Solo faltantes</button>
+    </nav>
+
+    <div id="groupsView" class="view active"></div>
+    <div id="specialView" class="view"></div>
+    <div id="missingView" class="view"></div>
+  </main>
+
+  <section id="welcome" class="welcome">
+    <h2>Bienvenido a Familia Green Bay 🏆</h2>
+    <p>Lleva el inventario de tu álbum del Mundial 2026.</p>
+    <p>Inicia sesión con tu cuenta de Google para empezar.</p>
+    <p class="hint">👆 Usa el botón <strong>"Acceder con Google"</strong> arriba a la derecha.</p>
+  </section>
+
+  <!-- Team / section detail modal -->
+  <div class="modal" id="detailModal" hidden>
+    <div class="modal-content">
+      <header class="modal-header">
+        <h2 id="detailTitle"></h2>
+        <button class="icon-btn" id="closeDetail" aria-label="Cerrar">✕</button>
+      </header>
+
+      <div class="modal-actions">
+        <label class="btn btn-primary" for="photoInput">
+          📷 Subir / tomar foto
+        </label>
+        <input type="file" id="photoInput" accept="image/*" capture="environment" hidden />
+        <button class="btn btn-secondary" id="markAllBtn">✓ Marcar todas</button>
+        <button class="btn btn-secondary" id="clearAllBtn">✕ Limpiar</button>
+      </div>
+      <p class="modal-hint">Click en una ficha para marcarla. Click otra vez para indicar repetidas (×2, ×3…). Click derecho para descontar.</p>
+
+      <div id="scanStatus" class="scan-status" hidden></div>
+
+      <div class="scan-preview-wrap" id="scanPreviewWrap" hidden>
+        <img id="scanPreview" class="scan-preview" />
+        <div class="rotate-controls">
+          <button class="btn btn-secondary" id="rotateLeftBtn" title="Rotar 90° izquierda">↺ 90°</button>
+          <button class="btn btn-secondary" id="rotate180Btn" title="Rotar 180°">↻ 180°</button>
+          <button class="btn btn-secondary" id="rotateRightBtn" title="Rotar 90° derecha">↻ 90°</button>
+          <button class="btn btn-primary" id="confirmScanBtn">🔍 Analizar foto</button>
+        </div>
+      </div>
+
+      <div id="stickerGrid" class="sticker-grid"></div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast" hidden></div>
+
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

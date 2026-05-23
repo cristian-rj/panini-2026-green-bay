@@ -1,0 +1,140 @@
+{
+  "albumName": "Panini FIFA World Cup 2026",
+  "defaultStickersPerTeam": 20,
+  "_groupsSource": "Sorteo oficial FIFA, 5 de diciembre de 2025, Kennedy Center, Washington D.C.",
+  "specialSections": [
+    { "id": "intro", "name": "Introducción", "icon": "📖", "stickerCount": 6 },
+    { "id": "trophy", "name": "Trofeo FIFA", "icon": "🏆", "stickerCount": 4 },
+    { "id": "mascots", "name": "Mascotas (Maple, Zayu, Clutch)", "icon": "🦅", "stickerCount": 6 },
+    { "id": "host-countries", "name": "Países Anfitriones", "icon": "🌎", "stickerCount": 9 },
+    { "id": "host-cities", "name": "Ciudades Sede", "icon": "🏙️", "stickerCount": 16 },
+    { "id": "stadiums", "name": "Estadios", "icon": "🏟️", "stickerCount": 16 },
+    { "id": "legends", "name": "Leyendas del Mundial", "icon": "⭐", "stickerCount": 18 },
+    { "id": "coca-cola", "name": "Coca-Cola Trophy Tour", "icon": "🥤", "stickerCount": 8 },
+    { "id": "fifa-museum", "name": "Museo FIFA", "icon": "🏛️", "stickerCount": 10 },
+    { "id": "adidas-ball", "name": "Balón Oficial Adidas", "icon": "⚽", "stickerCount": 4 },
+    { "id": "match-poster", "name": "Pósters Oficiales", "icon": "🖼️", "stickerCount": 12 }
+  ],
+  "groups": [
+    {
+      "id": "A",
+      "name": "Grupo A",
+      "teams": [
+        { "id": "MEX", "name": "México", "flag": "🇲🇽", "stickerCount": 20 },
+        { "id": "RSA", "name": "Sudáfrica", "flag": "🇿🇦", "stickerCount": 20 },
+        { "id": "KOR", "name": "Corea del Sur", "flag": "🇰🇷", "stickerCount": 20 },
+        { "id": "CZE", "name": "República Checa", "flag": "🇨🇿", "stickerCount": 20 }
+      ]
+    },
+    {
+      "id": "B",
+      "name": "Grupo B",
+      "teams": [
+        { "id": "CAN", "name": "Canadá", "flag": "🇨🇦", "stickerCount": 20 },
+        { "id": "BIH", "name": "Bosnia y Herzegovina", "flag": "🇧🇦", "stickerCount": 20 },
+        { "id": "QAT", "name": "Catar", "flag": "🇶🇦", "stickerCount": 20 },
+        { "id": "SUI", "name": "Suiza", "flag": "🇨🇭", "stickerCount": 20 }
+      ]
+    },
+    {
+      "id": "C",
+      "name": "Grupo C",
+      "teams": [
+        { "id": "BRA", "name": "Brasil", "flag": "🇧🇷", "stickerCount": 20 },
+        { "id": "MAR", "name": "Marruecos", "flag": "🇲🇦", "stickerCount": 20 },
+        { "id": "HAI", "name": "Haití", "flag": "🇭🇹", "stickerCount": 20 },
+        { "id": "SCO", "name": "Escocia", "flag": "🏴󠁧󠁢󠁳󠁣󠁴󠁿", "stickerCount": 20 }
+      ]
+    },
+    {
+      "id": "D",
+      "name": "Grupo D",
+      "teams": [
+        { "id": "USA", "name": "Estados Unidos", "flag": "🇺🇸", "stickerCount": 20 },
+        { "id": "PAR", "name": "Paraguay", "flag": "🇵🇾", "stickerCount": 20 },
+        { "id": "AUS", "name": "Australia", "flag": "🇦🇺", "stickerCount": 20 },
+        { "id": "TUR", "name": "Türkiye", "flag": "🇹🇷", "stickerCount": 20 }
+      ]
+    },
+    {
+      "id": "E",
+      "name": "Grupo E",
+      "teams": [
+        { "id": "GER", "name": "Alemania", "flag": "🇩🇪", "stickerCount": 20 },
+        { "id": "CUW", "name": "Curazao", "flag": "🇨🇼", "stickerCount": 20 },
+        { "id": "CIV", "name": "Costa de Marfil", "flag": "🇨🇮", "stickerCount": 20 },
+        { "id": "ECU", "name": "Ecuador", "flag": "🇪🇨", "stickerCount": 20 }
+      ]
+    },
+    {
+      "id": "F",
+      "name": "Grupo F",
+      "teams": [
+        { "id": "NED", "name": "Países Bajos", "flag": "🇳🇱", "stickerCount": 20 },
+        { "id": "JPN", "name": "Japón", "flag": "🇯🇵", "stickerCount": 20 },
+        { "id": "SWE", "name": "Suecia", "flag": "🇸🇪", "stickerCount": 20 },
+        { "id": "TUN", "name": "Túnez", "flag": "🇹🇳", "stickerCount": 20 }
+      ]
+    },
+    {
+      "id": "G",
+      "name": "Grupo G",
+      "teams": [
+        { "id": "BEL", "name": "Bélgica", "flag": "🇧🇪", "stickerCount": 20 },
+        { "id": "EGY", "name": "Egipto", "flag": "🇪🇬", "stickerCount": 20 },
+        { "id": "IRN", "name": "Irán", "flag": "🇮🇷", "stickerCount": 20 },
+        { "id": "NZL", "name": "Nueva Zelanda", "flag": "🇳🇿", "stickerCount": 20 }
+      ]
+    },
+    {
+      "id": "H",
+      "name": "Grupo H",
+      "teams": [
+        { "id": "ESP", "name": "España", "flag": "🇪🇸", "stickerCount": 20 },
+        { "id": "CPV", "name": "Cabo Verde", "flag": "🇨🇻", "stickerCount": 20 },
+        { "id": "KSA", "name": "Arabia Saudita", "flag": "🇸🇦", "stickerCount": 20 },
+        { "id": "URU", "name": "Uruguay", "flag": "🇺🇾", "stickerCount": 20 }
+      ]
+    },
+    {
+      "id": "I",
+      "name": "Grupo I",
+      "teams": [
+        { "id": "FRA", "name": "Francia", "flag": "🇫🇷", "stickerCount": 20 },
+        { "id": "SEN", "name": "Senegal", "flag": "🇸🇳", "stickerCount": 20 },
+        { "id": "IRQ", "name": "Irak", "flag": "🇮🇶", "stickerCount": 20 },
+        { "id": "NOR", "name": "Noruega", "flag": "🇳🇴", "stickerCount": 20 }
+      ]
+    },
+    {
+      "id": "J",
+      "name": "Grupo J",
+      "teams": [
+        { "id": "ARG", "name": "Argentina", "flag": "🇦🇷", "stickerCount": 20 },
+        { "id": "ALG", "name": "Argelia", "flag": "🇩🇿", "stickerCount": 20 },
+        { "id": "AUT", "name": "Austria", "flag": "🇦🇹", "stickerCount": 20 },
+        { "id": "JOR", "name": "Jordania", "flag": "🇯🇴", "stickerCount": 20 }
+      ]
+    },
+    {
+      "id": "K",
+      "name": "Grupo K",
+      "teams": [
+        { "id": "POR", "name": "Portugal", "flag": "🇵🇹", "stickerCount": 20 },
+        { "id": "COD", "name": "RD del Congo", "flag": "🇨🇩", "stickerCount": 20 },
+        { "id": "UZB", "name": "Uzbekistán", "flag": "🇺🇿", "stickerCount": 20 },
+        { "id": "COL", "name": "Colombia", "flag": "🇨🇴", "stickerCount": 20 }
+      ]
+    },
+    {
+      "id": "L",
+      "name": "Grupo L",
+      "teams": [
+        { "id": "ENG", "name": "Inglaterra", "flag": "🏴󠁧󠁢󠁥󠁮󠁧󠁿", "stickerCount": 20 },
+        { "id": "CRO", "name": "Croacia", "flag": "🇭🇷", "stickerCount": 20 },
+        { "id": "GHA", "name": "Ghana", "flag": "🇬🇭", "stickerCount": 20 },
+        { "id": "PAN", "name": "Panamá", "flag": "🇵🇦", "stickerCount": 20 }
+      ]
+    }
+  ]
+}
