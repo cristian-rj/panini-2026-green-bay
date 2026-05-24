@@ -77,14 +77,14 @@
       </header>
 
       <div class="modal-actions">
-        <label class="btn btn-primary" for="photoInput">
+        <label class="btn btn-secondary" for="photoInput">
           📷 Subir / tomar foto
         </label>
         <input type="file" id="photoInput" accept="image/*" capture="environment" hidden />
         <button class="btn btn-secondary" id="markAllBtn">✓ Marcar todas</button>
         <button class="btn btn-secondary" id="clearAllBtn">✕ Limpiar</button>
       </div>
-      <p class="modal-hint">Click en una ficha para marcarla. Click otra vez para indicar repetidas (×2, ×3…). Click derecho para descontar.</p>
+      <p class="modal-hint">Click en una ficha para marcarla. Click otra vez para indicar repetidas (×2, ×3…). Click derecho para descontar. Los cambios <strong>no se guardan hasta pulsar el botón de abajo</strong>.</p>
 
       <div id="scanStatus" class="scan-status" hidden></div>
 
@@ -99,6 +99,11 @@
       </div>
 
       <div id="stickerGrid" class="sticker-grid"></div>
+
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="discardChangesBtn" hidden>↺ Descartar</button>
+        <button class="btn btn-save" id="saveChangesBtn" disabled>💾 Sin cambios</button>
+      </div>
     </div>
   </div>
 

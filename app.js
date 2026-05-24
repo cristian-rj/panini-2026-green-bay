@@ -10,7 +10,13 @@
     currentDetail: null,  // { type: 'team'|'special', node }
     pending: 0,           // number of in-flight save operations
     lastError: null,      // last sync error message
-    failedOps: []         // operations to retry on demand
+    failedOps: [],        // operations to retry on demand
+    // Dirty buffer for the currently open modal. Keys are sticker IDs, values
+    // are { owned, count }. Cleared on save or discard.
+    dirty: new Map(),
+    // Snapshot of inventory state before the user started editing, used to
+    // restore on Discard. Captured when the modal opens.
+    snapshot: null
   };
 
   const $ = (id) => document.getElementById(id);
@@ -133,6 +139,78 @@
     if (state.failedOps.length === 0) {
       toast('✓ Cambios guardados', 'success');
     }
+  }
+
+  // ---------- Dirty buffer (manual save) ----------
+  // Records a pending change (no backend call). Updates inventory locally and
+  // refreshes the Save button. Use this anywhere a change should be queued.
+  function markDirty(id, owned, count) {
+    state.dirty.set(id, { owned: !!owned, count: Number(count || 0) });
+    state.inventory[id] = {
+      owned: !!owned,
+      count: Number(count || 0),
+      updatedAt: new Date().toISOString(),
+      updatedBy: (state.user && state.user.email) || '' // optimistic
+    };
+    renderSaveButton();
+  }
+
+  function renderSaveButton() {
+    const saveBtn = $('saveChangesBtn');
+    const discardBtn = $('discardChangesBtn');
+    if (!saveBtn || !discardBtn) return;
+    const n = state.dirty.size;
+    if (n === 0) {
+      saveBtn.disabled = true;
+      saveBtn.textContent = '💾 Sin cambios';
+      discardBtn.hidden = true;
+    } else {
+      saveBtn.disabled = false;
+      saveBtn.textContent = '💾 Guardar ' + n + (n === 1 ? ' cambio' : ' cambios');
+      discardBtn.hidden = false;
+    }
+  }
+
+  async function saveChanges() {
+    if (state.dirty.size === 0) return;
+    const stickers = [];
+    state.dirty.forEach((v, id) => stickers.push({ id, owned: v.owned, count: v.count }));
+    await trackedSave('bulkUpdate', { stickers });
+    if (state.failedOps.length === 0) {
+      const n = stickers.length;
+      state.dirty.clear();
+      state.snapshot = snapshotInventory();
+      renderSaveButton();
+      toast('✓ Guardados ' + n + (n === 1 ? ' cambio' : ' cambios'), 'success');
+    } else {
+      toast('Error guardando. Pulsa "Reintentar" arriba.', 'error');
+    }
+  }
+
+  function discardChanges() {
+    if (state.dirty.size === 0) return;
+    if (!confirm('¿Descartar ' + state.dirty.size + ' cambio(s) sin guardar?')) return;
+    // Restore inventory from snapshot
+    if (state.snapshot) {
+      state.dirty.forEach((_, id) => {
+        if (state.snapshot[id] === undefined) {
+          delete state.inventory[id];
+        } else {
+          state.inventory[id] = state.snapshot[id];
+        }
+      });
+    }
+    state.dirty.clear();
+    renderSaveButton();
+    if (state.currentDetail) renderStickerGrid();
+    recomputeStats();
+  }
+
+  function snapshotInventory() {
+    // Shallow copy is enough because individual sticker entries are replaced on update.
+    const snap = {};
+    Object.keys(state.inventory).forEach(k => { snap[k] = state.inventory[k]; });
+    return snap;
   }
 
   // ---------- Stats ----------
@@ -300,19 +378,63 @@
 
   // ---------- Detail modal ----------
   function openDetail(opts) {
+    // If the user opens a new team with unsaved changes from another, force them to resolve first.
+    if (state.dirty.size > 0) {
+      const ok = confirm(state.dirty.size + ' cambio(s) sin guardar. ¿Descartar para abrir otro equipo?');
+      if (!ok) return;
+      discardChangesNoConfirm();
+    }
     state.currentDetail = opts;
+    state.snapshot = snapshotInventory();
+    state.dirty.clear();
     $('detailTitle').textContent = opts.title;
     $('scanStatus').hidden = true;
     $('scanPreviewWrap').hidden = true;
     scanCtx.img = null;
     scanCtx.rotation = 0;
     renderStickerGrid();
+    renderSaveButton();
     $('detailModal').hidden = false;
   }
 
   function closeDetail() {
+    if (state.dirty.size > 0) {
+      const choice = confirm(
+        state.dirty.size + ' cambio(s) sin guardar.\n\n' +
+        'Aceptar = guardar y cerrar\n' +
+        'Cancelar = volver al modal (no se cierra)'
+      );
+      if (choice) {
+        // Save then close once it succeeds
+        saveChanges().then(() => {
+          if (state.dirty.size === 0) {
+            $('detailModal').hidden = true;
+            state.currentDetail = null;
+            state.snapshot = null;
+          }
+        });
+      }
+      return; // either saving in progress or user clicked Cancel
+    }
     $('detailModal').hidden = true;
     state.currentDetail = null;
+    state.snapshot = null;
+  }
+
+  function discardChangesNoConfirm() {
+    if (state.snapshot) {
+      state.dirty.forEach((_, id) => {
+        if (state.snapshot[id] === undefined) {
+          delete state.inventory[id];
+        } else {
+          state.inventory[id] = state.snapshot[id];
+        }
+      });
+    }
+    state.dirty.clear();
+    renderSaveButton();
+    if (state.currentDetail) renderStickerGrid();
+    recomputeStats();
   }
 
   function renderStickerGrid(highlightSet) {
@@ -345,61 +467,48 @@
     }
   }
 
-  async function cycleSticker(id) {
+  function cycleSticker(id) {
     const s = getSticker(id);
     let next;
     if (!s.owned) next = { owned: true, count: 1 };
     else if (s.count < 5) next = { owned: true, count: s.count + 1 };
     else next = { owned: false, count: 0 };
-    state.inventory[id] = next;
+    markDirty(id, next.owned, next.count);
     renderStickerGrid();
     recomputeStats();
-    await trackedSave('updateSticker', { stickerId: id, owned: next.owned, count: next.count });
   }
 
-  async function decSticker(id) {
+  function decSticker(id) {
     const s = getSticker(id);
     if (!s.owned) return;
     const next = s.count > 1 ? { owned: true, count: s.count - 1 } : { owned: false, count: 0 };
-    state.inventory[id] = next;
+    markDirty(id, next.owned, next.count);
     renderStickerGrid();
     recomputeStats();
-    await trackedSave('updateSticker', { stickerId: id, owned: next.owned, count: next.count });
   }
 
-  async function markAllOwned() {
+  function markAllOwned() {
     const { stickerCount, idFor } = state.currentDetail;
-    const updates = [];
+    let n = 0;
     for (let i = 1; i <= stickerCount; i++) {
       const id = idFor(i);
       const cur = getSticker(id);
-      if (!cur.owned) {
-        state.inventory[id] = { owned: true, count: 1 };
-        updates.push({ id, owned: true, count: 1 });
-      }
+      if (!cur.owned) { markDirty(id, true, 1); n++; }
     }
     renderStickerGrid();
     recomputeStats();
-    if (updates.length) {
-      await trackedSave('bulkUpdate', { stickers: updates });
-      if (!state.failedOps.length) toast('Marcadas ' + updates.length + ' fichas', 'success');
-    }
+    if (n > 0) toast(n + ' fichas pendientes de guardar', 'success');
   }
 
-  async function clearAll() {
-    if (!confirm('¿Limpiar todas las fichas de esta página?')) return;
+  function clearAll() {
+    if (!confirm('¿Marcar todas las fichas de esta página como faltantes? (no se guarda hasta que pulses Guardar)')) return;
     const { stickerCount, idFor } = state.currentDetail;
-    const updates = [];
     for (let i = 1; i <= stickerCount; i++) {
       const id = idFor(i);
-      if (getSticker(id).owned) {
-        state.inventory[id] = { owned: false, count: 0 };
-        updates.push({ id, owned: false, count: 0 });
-      }
+      if (getSticker(id).owned) markDirty(id, false, 0);
     }
     renderStickerGrid();
     recomputeStats();
-    if (updates.length) await trackedSave('bulkUpdate', { stickers: updates });
   }
 
   // ---------- Photo scan ----------
@@ -463,27 +572,25 @@
       });
       const filled = (res.filled || []).filter(n => n >= 1 && n <= detail.stickerCount);
       const detected = new Set();
-      const updates = [];
+      let newCount = 0;
       filled.forEach(n => {
         const id = detail.idFor(n);
         const cur = getSticker(id);
         if (!cur.owned) {
-          state.inventory[id] = { owned: true, count: 1 };
-          updates.push({ id, owned: true, count: 1 });
+          markDirty(id, true, 1);
           detected.add(n);
+          newCount++;
         }
       });
 
       renderStickerGrid(detected);
       recomputeStats();
 
-      if (updates.length) {
-        await trackedSave('bulkUpdate', { stickers: updates });
-      }
-
       let msg = '✅ Detectadas ' + filled.length + ' fichas';
-      if (updates.length !== filled.length) {
-        msg += ' (' + updates.length + ' nuevas para ti)';
+      if (newCount > 0) {
+        msg += ' (' + newCount + ' nuevas — pulsa Guardar para confirmar)';
+      } else {
+        msg += ' (ninguna nueva)';
       }
       if (res.uncertain && res.uncertain.length) {
         msg += ' · ⚠️ ' + res.uncertain.length + ' inciertas (revisa: ' + res.uncertain.join(', ') + ')';
@@ -691,6 +798,10 @@
   async function reloadInventory(silent) {
     if (reloadInflight) return;
     if (!state.user) return;
+    if (state.dirty.size > 0) {
+      if (!silent) toast('Guarda o descarta tus cambios antes de recargar', 'error');
+      return;
+    }
     reloadInflight = true;
     const btn = $('reloadBtn');
     if (btn) btn.classList.add('spinning');
@@ -711,11 +822,13 @@
     }
   }
 
-  // Auto-refresh when the user returns to the tab, but not more than once per 20s.
+  // Auto-refresh when the user returns to the tab, but not more than once per 20s,
+  // and never while there are unsaved local changes (would clobber them).
   let lastAutoReload = 0;
   function maybeAutoReload() {
     if (!state.user) return;
     if (document.hidden) return;
+    if (state.dirty.size > 0) return;
     const now = Date.now();
     if (now - lastAutoReload < 20000) return;
     lastAutoReload = now;
@@ -751,8 +864,18 @@
     $('syncStatus').addEventListener('click', () => {
       if (state.failedOps.length) retryFailed();
     });
+    $('saveChangesBtn').addEventListener('click', saveChanges);
+    $('discardChangesBtn').addEventListener('click', discardChanges);
+    // Warn if the user tries to close/reload the tab with unsaved changes
+    window.addEventListener('beforeunload', (e) => {
+      if (state.dirty.size > 0) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    });
     document.addEventListener('visibilitychange', maybeAutoReload);
     renderSyncStatus();
+    renderSaveButton();
 
     // Try to restore session from localStorage before showing the login button
     const stored = loadStoredAuth();
