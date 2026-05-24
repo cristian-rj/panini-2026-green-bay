@@ -15,7 +15,7 @@
  */
 
 const SHEET_ID = 'PASTE_YOUR_SHEET_ID_HERE';
-const INVENTORY_SHEET = 'Inventory';
+const INVENTORY_SHEET = 'SharedInventory'; // Shared across all family members; old 'Inventory' sheet is preserved as backup.
 const ANTHROPIC_MODEL = 'claude-sonnet-4-6'; // More accurate vision than haiku, ~3x cost (~$0.005/scan)
 const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages';
 
@@ -52,7 +52,7 @@ function handleRequest(e, method) {
 
     switch (action) {
       case 'getInventory':
-        return jsonResponse({ ok: true, user: user.email, inventory: getInventory(user.email) });
+        return jsonResponse({ ok: true, user: user.email, inventory: getInventory() });
       case 'updateSticker':
         updateSticker(user.email, params.stickerId, !!params.owned, Number(params.count || 1));
         return jsonResponse({ ok: true });
@@ -106,37 +106,40 @@ function verifyUser(idToken) {
 
 // ---------- Sheet helpers ----------
 
+// Shared schema: sticker_id | owned | count | updated_at | updated_by
+// One row per sticker (not per user-sticker). Everyone reads/writes the same data.
+const HEADERS = ['sticker_id', 'owned', 'count', 'updated_at', 'updated_by'];
+
 function getSheet() {
   const ss = SpreadsheetApp.openById(SHEET_ID);
   let sheet = ss.getSheetByName(INVENTORY_SHEET);
   if (!sheet) {
     sheet = ss.insertSheet(INVENTORY_SHEET);
-    sheet.appendRow(['email', 'sticker_id', 'owned', 'count', 'updated_at']);
+    sheet.appendRow(HEADERS);
+    sheet.setFrozenRows(1);
   }
   return sheet;
 }
 
 function setupSheet() {
-  const ss = SpreadsheetApp.openById(SHEET_ID);
-  let sheet = ss.getSheetByName(INVENTORY_SHEET);
-  if (!sheet) {
-    sheet = ss.insertSheet(INVENTORY_SHEET);
-  }
-  if (sheet.getLastRow() === 0) {
-    sheet.appendRow(['email', 'sticker_id', 'owned', 'count', 'updated_at']);
-  }
+  const sheet = getSheet();
+  if (sheet.getLastRow() === 0) sheet.appendRow(HEADERS);
   sheet.setFrozenRows(1);
 }
 
-function getInventory(email) {
+function getInventory() {
   const sheet = getSheet();
   const data = sheet.getDataRange().getValues();
   const inv = {};
   for (let i = 1; i < data.length; i++) {
-    const [rowEmail, stickerId, owned, count] = data[i];
-    if (String(rowEmail).toLowerCase() === email) {
-      inv[stickerId] = { owned: !!owned, count: Number(count || 0) };
-    }
+    const [stickerId, owned, count, updatedAt, updatedBy] = data[i];
+    if (!stickerId) continue;
+    inv[stickerId] = {
+      owned: !!owned,
+      count: Number(count || 0),
+      updatedAt: updatedAt ? new Date(updatedAt).toISOString() : null,
+      updatedBy: updatedBy || ''
+    };
   }
   return inv;
 }
@@ -147,12 +150,12 @@ function updateSticker(email, stickerId, owned, count) {
   const data = sheet.getDataRange().getValues();
   const now = new Date();
   for (let i = 1; i < data.length; i++) {
-    if (String(data[i][0]).toLowerCase() === email && data[i][1] === stickerId) {
-      sheet.getRange(i + 1, 3, 1, 3).setValues([[owned, count, now]]);
+    if (data[i][0] === stickerId) {
+      sheet.getRange(i + 1, 2, 1, 4).setValues([[owned, count, now, email]]);
       return;
     }
   }
-  sheet.appendRow([email, stickerId, owned, count, now]);
+  sheet.appendRow([stickerId, owned, count, now, email]);
 }
 
 function bulkUpdate(email, stickers) {
@@ -161,12 +164,10 @@ function bulkUpdate(email, stickers) {
   const data = sheet.getDataRange().getValues();
   const now = new Date();
 
-  // Build index of existing rows
+  // Build index of existing rows by sticker_id
   const index = {};
   for (let i = 1; i < data.length; i++) {
-    if (String(data[i][0]).toLowerCase() === email) {
-      index[data[i][1]] = i + 1; // sheet row number (1-based)
-    }
+    if (data[i][0]) index[data[i][0]] = i + 1;
   }
 
   const toAppend = [];
@@ -175,14 +176,14 @@ function bulkUpdate(email, stickers) {
     const owned = !!s.owned;
     const count = Number(s.count != null ? s.count : (owned ? 1 : 0));
     if (index[s.id]) {
-      sheet.getRange(index[s.id], 3, 1, 3).setValues([[owned, count, now]]);
+      sheet.getRange(index[s.id], 2, 1, 4).setValues([[owned, count, now, email]]);
     } else {
-      toAppend.push([email, s.id, owned, count, now]);
+      toAppend.push([s.id, owned, count, now, email]);
     }
   });
 
   if (toAppend.length) {
-    sheet.getRange(sheet.getLastRow() + 1, 1, toAppend.length, 5).setValues(toAppend);
+    sheet.getRange(sheet.getLastRow() + 1, 1, toAppend.length, HEADERS.length).setValues(toAppend);
   }
 }
 

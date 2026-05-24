@@ -5,9 +5,12 @@
   // ---------- State ----------
   const state = {
     album: null,          // album-structure.json
-    inventory: {},        // { stickerId: { owned: bool, count: number } }
+    inventory: {},        // { stickerId: { owned, count, updatedAt, updatedBy } }
     user: null,           // { email, name, picture, idToken }
-    currentDetail: null   // { type: 'team'|'special', node }
+    currentDetail: null,  // { type: 'team'|'special', node }
+    pending: 0,           // number of in-flight save operations
+    lastError: null,      // last sync error message
+    failedOps: []         // operations to retry on demand
   };
 
   const $ = (id) => document.getElementById(id);
@@ -72,6 +75,64 @@
     el.hidden = false;
     if (toastTimer) clearTimeout(toastTimer);
     toastTimer = setTimeout(() => { el.hidden = true; }, 3200);
+  }
+
+  // ---------- Sync status ----------
+  function renderSyncStatus() {
+    const el = $('syncStatus');
+    if (!el) return;
+    el.classList.remove('saving', 'error');
+    const textEl = el.querySelector('.sync-text');
+    if (state.pending > 0) {
+      el.classList.add('saving');
+      textEl.textContent = 'Guardando…';
+      el.title = state.pending + ' cambio(s) en curso';
+    } else if (state.failedOps.length > 0) {
+      el.classList.add('error');
+      textEl.textContent = 'Reintentar (' + state.failedOps.length + ')';
+      el.title = (state.lastError || 'Error al guardar') + '. Click para reintentar.';
+    } else {
+      textEl.textContent = '✓ Guardado';
+      el.title = 'Todo sincronizado con Google Sheets';
+    }
+  }
+
+  // Wraps a backend save call with pending counter + error queueing.
+  // If the call fails, the op is added to failedOps for the user to retry.
+  async function trackedSave(action, payload, retryOp) {
+    state.pending++;
+    renderSyncStatus();
+    try {
+      await callBackend(action, payload);
+      // Success — if this was a retry, remove it from the queue
+      if (retryOp) {
+        const idx = state.failedOps.indexOf(retryOp);
+        if (idx >= 0) state.failedOps.splice(idx, 1);
+      }
+      state.lastError = null;
+    } catch (e) {
+      state.lastError = e.message;
+      if (!retryOp) {
+        state.failedOps.push({ action, payload });
+      }
+      console.error('Save failed:', action, e);
+    } finally {
+      state.pending--;
+      renderSyncStatus();
+    }
+  }
+
+  async function retryFailed() {
+    if (!state.failedOps.length) return;
+    const ops = state.failedOps.slice();
+    state.failedOps = [];
+    renderSyncStatus();
+    for (const op of ops) {
+      await trackedSave(op.action, op.payload, op);
+    }
+    if (state.failedOps.length === 0) {
+      toast('✓ Cambios guardados', 'success');
+    }
   }
 
   // ---------- Stats ----------
@@ -271,7 +332,11 @@
         badge.textContent = '×' + s.count;
         el.appendChild(badge);
       }
-      el.title = s.owned ? (s.count > 1 ? 'Tienes ' + s.count + ' (repetidas)' : 'Tienes esta ficha') : 'No tienes esta ficha';
+      let tip = s.owned
+        ? (s.count > 1 ? 'Tienen ' + s.count + ' (' + (s.count - 1) + ' repetidas)' : 'Tienen esta ficha')
+        : 'Aún no tienen esta ficha';
+      if (s.updatedBy) tip += '\nActualizada por: ' + s.updatedBy;
+      el.title = tip;
       // Left-click cycles: empty -> 1 -> 2 -> 3 -> ... -> empty
       el.addEventListener('click', () => cycleSticker(id));
       // Right-click decrements
@@ -289,11 +354,7 @@
     state.inventory[id] = next;
     renderStickerGrid();
     recomputeStats();
-    try {
-      await callBackend('updateSticker', { stickerId: id, owned: next.owned, count: next.count });
-    } catch (e) {
-      toast('Error guardando: ' + e.message, 'error');
-    }
+    await trackedSave('updateSticker', { stickerId: id, owned: next.owned, count: next.count });
   }
 
   async function decSticker(id) {
@@ -303,11 +364,7 @@
     state.inventory[id] = next;
     renderStickerGrid();
     recomputeStats();
-    try {
-      await callBackend('updateSticker', { stickerId: id, owned: next.owned, count: next.count });
-    } catch (e) {
-      toast('Error guardando: ' + e.message, 'error');
-    }
+    await trackedSave('updateSticker', { stickerId: id, owned: next.owned, count: next.count });
   }
 
   async function markAllOwned() {
@@ -324,10 +381,8 @@
     renderStickerGrid();
     recomputeStats();
     if (updates.length) {
-      try {
-        await callBackend('bulkUpdate', { stickers: updates });
-        toast('Marcadas ' + updates.length + ' fichas', 'success');
-      } catch (e) { toast('Error: ' + e.message, 'error'); }
+      await trackedSave('bulkUpdate', { stickers: updates });
+      if (!state.failedOps.length) toast('Marcadas ' + updates.length + ' fichas', 'success');
     }
   }
 
@@ -344,11 +399,7 @@
     }
     renderStickerGrid();
     recomputeStats();
-    if (updates.length) {
-      try {
-        await callBackend('bulkUpdate', { stickers: updates });
-      } catch (e) { toast('Error: ' + e.message, 'error'); }
-    }
+    if (updates.length) await trackedSave('bulkUpdate', { stickers: updates });
   }
 
   // ---------- Photo scan ----------
@@ -427,7 +478,7 @@
       recomputeStats();
 
       if (updates.length) {
-        await callBackend('bulkUpdate', { stickers: updates });
+        await trackedSave('bulkUpdate', { stickers: updates });
       }
 
       let msg = '✅ Detectadas ' + filled.length + ' fichas';
@@ -618,6 +669,7 @@
       $('main').hidden = false;
       $('stats').hidden = false;
       renderAll();
+      renderSyncStatus();
     } catch (e) {
       console.error(e);
       // If backend rejects our token (expired/invalid), clear it and prompt re-login.
@@ -631,6 +683,43 @@
         toast('Error: ' + e.message, 'error');
       }
     }
+  }
+
+  // Pulls latest inventory from the Sheet to show changes other users made.
+  // Used by the ↻ button and on window focus (debounced).
+  let reloadInflight = false;
+  async function reloadInventory(silent) {
+    if (reloadInflight) return;
+    if (!state.user) return;
+    reloadInflight = true;
+    const btn = $('reloadBtn');
+    if (btn) btn.classList.add('spinning');
+    try {
+      const data = await callBackend('getInventory');
+      const before = JSON.stringify(state.inventory);
+      state.inventory = data.inventory || {};
+      const after = JSON.stringify(state.inventory);
+      renderAll();
+      if (!silent) {
+        toast(before === after ? 'Sin cambios nuevos' : '✓ Inventario actualizado', 'success');
+      }
+    } catch (e) {
+      if (!silent) toast('Error al recargar: ' + e.message, 'error');
+    } finally {
+      reloadInflight = false;
+      if (btn) btn.classList.remove('spinning');
+    }
+  }
+
+  // Auto-refresh when the user returns to the tab, but not more than once per 20s.
+  let lastAutoReload = 0;
+  function maybeAutoReload() {
+    if (!state.user) return;
+    if (document.hidden) return;
+    const now = Date.now();
+    if (now - lastAutoReload < 20000) return;
+    lastAutoReload = now;
+    reloadInventory(true);
   }
 
   // ---------- Util ----------
@@ -658,6 +747,12 @@
     $('rotateRightBtn').addEventListener('click', () => rotateScan(90));
     $('rotate180Btn').addEventListener('click', () => rotateScan(180));
     $('confirmScanBtn').addEventListener('click', confirmScan);
+    $('reloadBtn').addEventListener('click', () => reloadInventory(false));
+    $('syncStatus').addEventListener('click', () => {
+      if (state.failedOps.length) retryFailed();
+    });
+    document.addEventListener('visibilitychange', maybeAutoReload);
+    renderSyncStatus();
 
     // Try to restore session from localStorage before showing the login button
     const stored = loadStoredAuth();
